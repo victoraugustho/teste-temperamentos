@@ -1,6 +1,5 @@
 // app/api/salvar-resultado/route.ts
 import { NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/db"
 
 export const runtime = "nodejs"
 
@@ -63,6 +62,7 @@ function toPercentages(scores: Scores) {
 }
 
 export async function POST(req: NextRequest) {
+    const { db } = await import("@/lib/db");
   try {
     const body = await req.json().catch(() => null)
 

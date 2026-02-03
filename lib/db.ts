@@ -1,17 +1,33 @@
-// lib/db.ts
-import postgres from "postgres"
+import postgres, { type Sql } from "postgres";
 
-const DATABASE_URL = process.env.DATABASE_URL
-
-if (!DATABASE_URL) {
-  throw new Error("DATABASE_URL não definido no .env")
+declare global {
+  var __db__: Sql | undefined;
 }
 
-// OBS: em produção, você pode ajustar ssl conforme seu provedor.
-// Se estiver em VPS com Postgres local, geralmente ssl: false está ok.
-export const db = postgres(DATABASE_URL, {
-  ssl: process.env.DATABASE_SSL === "true" ? "require" : false,
-  max: Number(process.env.DATABASE_POOL_SIZE ?? "10"),
-  idle_timeout: 20,
-  connect_timeout: 10,
-})
+function requiredEnv(name: string) {
+  const v = process.env[name];
+  if (!v) throw new Error(`${name} não definido`);
+  return v;
+}
+
+function createDb() {
+  const DATABASE_URL = requiredEnv("DATABASE_URL");
+
+  const ssl =
+    process.env.DATABASE_SSL === "true" ? ("require" as const) : false;
+
+  const max = Number(process.env.DATABASE_POOL_SIZE ?? "10");
+
+  return postgres(DATABASE_URL, {
+    ssl,
+    max,
+    idle_timeout: 20,
+    connect_timeout: 10,
+  });
+}
+
+export const db: Sql = globalThis.__db__ ?? createDb();
+
+if (process.env.NODE_ENV !== "production") {
+  globalThis.__db__ = db;
+}

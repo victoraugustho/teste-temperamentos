@@ -6,13 +6,9 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
 
-# libs comuns que às vezes são necessárias (sharp, etc.)
 RUN apk add --no-cache libc6-compat
 
-# Copia manifests
 COPY package.json package-lock.json* ./
-
-# Instala deps (inclui devDeps para build)
 RUN npm ci
 
 ############################
@@ -23,13 +19,23 @@ WORKDIR /app
 
 RUN apk add --no-cache libc6-compat
 
-# Reusa node_modules do stage deps
-COPY --from=deps /app/node_modules ./node_modules
+# ---- build args vindos do EasyPanel ----
+ARG DATABASE_URL
+ARG DATABASE_SSL=false
+ARG DATABASE_POOL_SIZE=10
+ARG GIT_SHA
 
-# Copia o restante do projeto
+# ---- ENVs disponíveis durante o build do Next ----
+ENV DATABASE_URL=$DATABASE_URL
+ENV DATABASE_SSL=$DATABASE_SSL
+ENV DATABASE_POOL_SIZE=$DATABASE_POOL_SIZE
+ENV GIT_SHA=$GIT_SHA
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build do Next
 RUN npm run build
 
 ############################
@@ -40,21 +46,24 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Usuário não-root
+# (Opcional mas recomendado) também aceitar env no runtime via env vars do container
+ARG DATABASE_URL
+ARG DATABASE_SSL=false
+ARG DATABASE_POOL_SIZE=10
+ENV DATABASE_URL=$DATABASE_URL
+ENV DATABASE_SSL=$DATABASE_SSL
+ENV DATABASE_POOL_SIZE=$DATABASE_POOL_SIZE
+
 RUN addgroup -S nextjs && adduser -S nextjs -G nextjs
 
-# Se você estiver usando output: "standalone"
-# Isso copia o servidor standalone do Next + assets necessários
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
-# Permissões
 RUN chown -R nextjs:nextjs /app
 USER nextjs
 
 EXPOSE 3000
-
-# Em standalone, o entrypoint é server.js na raiz copiada
 CMD ["node", "server.js"]
