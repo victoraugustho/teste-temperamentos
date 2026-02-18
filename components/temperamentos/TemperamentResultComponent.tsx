@@ -47,7 +47,7 @@ const temperamentData = {
   },
   colerico: {
     name: "Colérico",
-    color: "from-red-500 to-pink-600",
+    color: "from-red-500 to-orange-600",
     description: "Líder natural, determinado e orientado a resultados",
     characteristics: ["Determinado", "Líder", "Competitivo", "Direto", "Ambicioso"],
     strengths: ["Liderança natural", "Orientado a resultados", "Decisivo", "Eficiente", "Corajoso"],
@@ -57,7 +57,7 @@ const temperamentData = {
   },
   melancolico: {
     name: "Melancólico",
-    color: "from-blue-500 to-purple-600",
+    color: "from-green-500 to-emerald-600",
     description: "Analítico, perfeccionista e detalhista",
     characteristics: ["Analítico", "Perfeccionista", "Detalhista", "Sensível", "Criativo"],
     strengths: ["Atenção aos detalhes", "Qualidade superior", "Planejamento", "Lealdade", "Profundidade"],
@@ -67,7 +67,7 @@ const temperamentData = {
   },
   fleumatico: {
     name: "Fleumático",
-    color: "from-green-500 to-teal-600",
+    color: "from-blue-500 to-cyan-600",
     description: "Paciente, estável e diplomático",
     characteristics: ["Paciente", "Estável", "Diplomático", "Confiável", "Calmo"],
     strengths: ["Estabilidade emocional", "Mediador natural", "Confiável", "Paciente", "Leal"],
