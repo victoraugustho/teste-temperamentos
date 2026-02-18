@@ -4,19 +4,8 @@ import { useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Download,
-  Share2,
-  Brain,
-  TrendingUp,
-  Award,
-  Users,
-  Target,
-  Lightbulb,
-  Sparkles,
-  Star,
-} from "lucide-react"
-import Image  from "next/image"
+import { Download, Brain, TrendingUp, Award, Users, Target, Lightbulb, Star } from "lucide-react"
+import Image from "next/image"
 
 interface TemperamentScores {
   sanguineo: number
@@ -31,6 +20,20 @@ interface TemperamentResultProps {
   dataRealizacao: string
 }
 
+function TemperamentAvatar({ src, alt }: { src: string; alt: string }) {
+  return (
+    <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 shrink-0">
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        sizes="(max-width: 640px) 64px, (max-width: 768px) 80px, (max-width: 1024px) 96px, 112px"
+        className="object-contain"
+      />
+    </div>
+  )
+}
+
 const temperamentData = {
   sanguineo: {
     name: "Sanguíneo",
@@ -40,6 +43,7 @@ const temperamentData = {
     strengths: ["Excelente comunicação", "Motivador natural", "Adaptável", "Criativo", "Carismático"],
     challenges: ["Pode ser desorganizado", "Dificuldade com detalhes", "Impulsivo", "Busca aprovação"],
     icon: <Users className="w-6 h-6" />,
+    imageSrc: "/sanguineo-att-2.png",
   },
   colerico: {
     name: "Colérico",
@@ -49,6 +53,7 @@ const temperamentData = {
     strengths: ["Liderança natural", "Orientado a resultados", "Decisivo", "Eficiente", "Corajoso"],
     challenges: ["Pode ser impaciente", "Dominador", "Pouco empático", "Workaholic"],
     icon: <Target className="w-6 h-6" />,
+    imageSrc: "/colerico.png",
   },
   melancolico: {
     name: "Melancólico",
@@ -58,6 +63,7 @@ const temperamentData = {
     strengths: ["Atenção aos detalhes", "Qualidade superior", "Planejamento", "Lealdade", "Profundidade"],
     challenges: ["Tendência ao pessimismo", "Autocrítico", "Moody", "Procrastinação"],
     icon: <Brain className="w-6 h-6" />,
+    imageSrc: "/melancolico.png",
   },
   fleumatico: {
     name: "Fleumático",
@@ -67,6 +73,7 @@ const temperamentData = {
     strengths: ["Estabilidade emocional", "Mediador natural", "Confiável", "Paciente", "Leal"],
     challenges: ["Resistente a mudanças", "Pode ser passivo", "Evita conflitos", "Lento para decidir"],
     icon: <Award className="w-6 h-6" />,
+    imageSrc: "/fleumatico.png",
   },
 } as const
 
@@ -145,17 +152,12 @@ export default function TemperamentResultComponent({ scores, clienteNome, dataRe
         y += 2
       })
 
-      // footer pages
       const pageCount = doc.getNumberOfPages()
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i)
         doc.setFontSize(8)
         doc.setTextColor(140, 140, 140)
-        doc.text(
-          `CRM 4 Temperamentos - Gerado em ${new Date().toLocaleDateString("pt-BR")}`,
-          margin,
-          doc.internal.pageSize.height - 10
-        )
+        doc.text(`CRM 4 Temperamentos - Gerado em ${new Date().toLocaleDateString("pt-BR")}`, margin, doc.internal.pageSize.height - 10)
         doc.text(`Página ${i} de ${pageCount}`, pageWidth - margin - 28, doc.internal.pageSize.height - 10)
       }
 
@@ -189,16 +191,10 @@ export default function TemperamentResultComponent({ scores, clienteNome, dataRe
                 <p className="text-lg font-semibold">{clienteNome}</p>
                 <p className="text-white/70">Realizado em: {dataRealizacao}</p>
               </div>
-                <div className="hidden md:flex w-20 h-20 rounded-full bg-white/10 border border-white/10 items-center justify-center relative">
-                <Image
-                    src="/logo.png"
-                    alt="Logo"
-                    fill
-                    className="object-contain"
-                    priority
-                />
-                </div>
 
+              <div className="hidden md:flex w-20 h-20 rounded-full bg-white/10 border border-white/10 items-center justify-center relative">
+                <Image src="/logo.png" alt="Logo" fill className="object-contain" priority />
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-3 mt-5">
@@ -215,37 +211,71 @@ export default function TemperamentResultComponent({ scores, clienteNome, dataRe
         </div>
 
         {/* Dominante */}
-        <Card className="bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl">
-          <CardHeader className="pb-4">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-r ${dominantData.color} flex items-center justify-center`}>
-                  {dominantData.icon}
-                </div>
-                <div>
-                  <CardTitle className="text-2xl text-white">Temperamento Dominante</CardTitle>
-                  <p className={`text-xl font-bold text-white`}>{dominantData.name}</p>
-                  <p className="text-white/70">{dominantData.description}</p>
+        <Card className="relative overflow-hidden bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl">
+          {/* Glow de fundo */}
+          <div className={`absolute inset-0 opacity-20 bg-gradient-to-r ${dominantData.color}`} />
+
+          <CardHeader className="relative pb-6">
+            <div className="grid md:grid-cols-2 gap-8 items-center">
+              
+              {/* IMAGEM GRANDE */}
+              <div className="flex justify-center md:justify-start">
+                <div className="relative w-56 h-56 sm:w-64 sm:h-64 md:w-72 md:h-72">
+                  <div
+                    className={`absolute inset-0 rounded-full blur-3xl opacity-40 bg-gradient-to-r ${dominantData.color}`}
+                  />
+                  <Image
+                    src={dominantData.imageSrc}
+                    alt={`Boneco ${dominantData.name}`}
+                    fill
+                    sizes="(max-width: 768px) 256px, 288px"
+                    className="object-contain relative z-10"
+                    priority
+                  />
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className={`w-16 h-16 rounded-full bg-gradient-to-r ${dominantData.color} flex items-center justify-center`}>
-                  <span className="text-lg font-bold">{percentages[0].percentage}%</span>
+              {/* INFORMAÇÕES */}
+              <div className="space-y-4 text-center md:text-left">
+                <div className="flex justify-center md:justify-start">
+                  <div
+                    className={`w-16 h-16 rounded-2xl bg-gradient-to-r ${dominantData.color} flex items-center justify-center`}
+                  >
+                    {dominantData.icon}
+                  </div>
                 </div>
-                <div className="text-white/70 text-sm">
-                  <div>Predominância</div>
-                  <div>{totalQuestions} respostas</div>
+
+                <CardTitle className="text-3xl md:text-4xl font-bold text-white">
+                  {dominantData.name}
+                </CardTitle>
+
+                <p className="text-white/80 text-lg">
+                  {dominantData.description}
+                </p>
+
+                <div className="flex justify-center md:justify-start items-center gap-4">
+                  <div
+                    className={`w-20 h-20 rounded-full bg-gradient-to-r ${dominantData.color} flex items-center justify-center shadow-xl`}
+                  >
+                    <span className="text-2xl font-bold">
+                      {percentages[0].percentage}%
+                    </span>
+                  </div>
+
+                  <div className="text-white/70 text-sm">
+                    <div>Predominância</div>
+                    <div>{totalQuestions} respostas</div>
+                  </div>
                 </div>
               </div>
             </div>
           </CardHeader>
 
-          <CardContent>
+          <CardContent className="relative">
             <div className="grid md:grid-cols-3 gap-6">
               <div>
                 <h4 className="font-semibold mb-3 flex items-center gap-2 text-cyan-300">
-                  <TrendingUp className="w-4 h-4 text-cyan-300" />
+                  <TrendingUp className="w-4 h-4" />
                   Características
                 </h4>
                 <div className="flex flex-wrap gap-2">
@@ -290,6 +320,7 @@ export default function TemperamentResultComponent({ scores, clienteNome, dataRe
           </CardContent>
         </Card>
 
+
         {/* Distribuição */}
         <Card className="bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl">
           <CardHeader>
@@ -301,6 +332,7 @@ export default function TemperamentResultComponent({ scores, clienteNome, dataRe
             </CardTitle>
             <p className="text-white/70">Visão geral das porcentagens e principais traços</p>
           </CardHeader>
+
           <CardContent>
             <div className="grid md:grid-cols-2 gap-4">
               {percentages.map(({ temperament, score, percentage }) => {
@@ -312,11 +344,17 @@ export default function TemperamentResultComponent({ scores, clienteNome, dataRe
                         <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${td.color} flex items-center justify-center`}>
                           {td.icon}
                         </div>
+
+                        <div className="hidden sm:block">
+                          <TemperamentAvatar src={td.imageSrc} alt={`Boneco ${td.name}`} />
+                        </div>
+
                         <div>
                           <div className="font-bold text-lg text-white">{td.name}</div>
                           <div className="text-white/60 text-sm">{score} respostas</div>
                         </div>
                       </div>
+
                       <div className={`w-14 h-14 rounded-full bg-gradient-to-r ${td.color} flex items-center justify-center`}>
                         <span className="font-bold">{percentage}%</span>
                       </div>
