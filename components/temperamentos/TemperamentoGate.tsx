@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -29,6 +29,7 @@ function setCookie(name: string, value: string, days = 30) {
 }
 
 function getCookie(name: string) {
+  if (typeof document === "undefined") return null
   const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"))
   return match ? decodeURIComponent(match[2]) : null
 }
@@ -42,34 +43,35 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
+function getSavedClienteFromCookie() {
+  const raw = getCookie(COOKIE_NAME)
+  if (!raw) return null
+
+  try {
+    const data = JSON.parse(raw) as ClienteCookie
+    if (data?.nome && data?.telefone && data?.email) {
+      return data
+    }
+  } catch {
+    return null
+  }
+
+  return null
+}
+
 export default function TemperamentoGate({
   nextPath = "/temperamentos/teste",
 }: {
   nextPath?: string
 }) {
   const router = useRouter()
+  const savedCliente = useMemo(() => getSavedClienteFromCookie(), [])
 
-  const [nome, setNome] = useState("")
-  const [email, setEmail] = useState("")
-  const [telefone, setTelefone] = useState("")
+  const [nome, setNome] = useState(savedCliente?.nome ?? "")
+  const [email, setEmail] = useState(savedCliente?.email ?? "")
+  const [telefone, setTelefone] = useState(savedCliente?.telefone ?? "")
   const [error, setError] = useState<string | null>(null)
-  const [hasSaved, setHasSaved] = useState(false)
-
-  useEffect(() => {
-    const raw = getCookie(COOKIE_NAME)
-    if (!raw) return
-    try {
-      const data = JSON.parse(raw) as ClienteCookie
-      if (data?.nome && data?.telefone && data?.email) {
-        setNome(data.nome)
-        setEmail(data.email)
-        setTelefone(data.telefone)
-        setHasSaved(true)
-      }
-    } catch {
-      // ignore
-    }
-  }, [])
+  const [hasSaved, setHasSaved] = useState(Boolean(savedCliente))
 
   const maskedTelefone = useMemo(() => {
     const d = onlyDigits(telefone)
@@ -128,8 +130,9 @@ export default function TemperamentoGate({
                     src="/logo.png"
                     alt="Logo"
                     fill
+                    sizes="(max-width: 300px) 100vw, (max-width: 500px) 50vw, 33vw"
                     className="object-contain"
-                    priority
+                    loading="eager"
                 />
                 </div>
             </div>

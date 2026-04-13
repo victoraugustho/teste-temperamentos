@@ -7,7 +7,7 @@ export type TempUser = {
   createdAt: number
 }
 
-export type TempResult = any
+export type TempResult = unknown
 
 function decodeBase64Json<T>(value?: string | null): T | null {
   if (!value) return null
@@ -24,7 +24,7 @@ export async function getTemperamentosUser(): Promise<TempUser | null> {
   return decodeBase64Json<TempUser>(c.get("temp_user")?.value)
 }
 
-export async function getTemperamentosResult<T = any>(): Promise<T | null> {
+export async function getTemperamentosResult<T = unknown>(): Promise<T | null> {
   const c = await cookies()
   return decodeBase64Json<T>(c.get("temp_result")?.value)
 }

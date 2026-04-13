@@ -1,37 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Portal de Teste de Temperamentos
 
-## Getting Started
+Projeto em Next.js com:
+- fluxo público de teste por `slug` + `token` único com expiração;
+- portal de gerenciamento autenticado (email/senha no banco);
+- armazenamento de resultados vinculado ao `userId` do criador do teste;
+- autenticação via JWT em cookie `httpOnly` e senha em hash `scrypt`.
 
-First, run the development server:
+## Requisitos de ambiente
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Defina no `.env.development`:
+
+```env
+DATABASE_URL=postgresql://...
+DATABASE_SSL=false
+DATABASE_POOL_SIZE=10
+PORTAL_JWT_SECRET=uma_chave_bem_longa_com_32_caracteres_ou_mais
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Rodando
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Criar usuário do portal manualmente no banco
 
-## Learn More
+1. Gere o hash da senha:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run hash:senha -- "SuaSenhaForteAqui"
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. Insira no banco (use o hash gerado):
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```sql
+INSERT INTO public.portal_users (email, password_hash, name, is_active)
+VALUES ('voce@dominio.com', 'scrypt$...', 'Administrador', TRUE);
+```
 
-## Deploy on Vercel
+## Scripts SQL prontos (portal)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Arquivos:
+- `scripts/db/001_portal_schema.sql` (tabelas + índices + constraints)
+- `scripts/db/002_portal_seed_user.sql` (seed/update do usuário do portal)
+- `scripts/db/003_portal_maintenance.sql` (rotina de manutenção para expiração)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-# teste-temperamentos
+Exemplo com `psql`:
+
+```bash
+psql "$DATABASE_URL" -f scripts/db/001_portal_schema.sql
+psql "$DATABASE_URL" -f scripts/db/002_portal_seed_user.sql
+```
+
+Obs.: as tabelas também podem ser criadas automaticamente pela aplicação na primeira chamada das rotas do portal.
+
+## Rotas principais
+
+- Login do portal: `/portal/login`
+- Dashboard do portal: `/portal`
+- Teste público por slug: `/teste/{slug}`
+- Questionário público: `/teste/{slug}/questionario`
+- Resultado público por slug/id: `/resultado/{slug}/{id}`
+
+## Segurança implementada
+
+- JWT assinado em `httpOnly cookie` (`SameSite=Strict` no portal);
+- hash de senha com `scrypt` + `timingSafeEqual`;
+- token do teste armazenado no banco como hash SHA-256 (não em texto puro);
+- controle de expiração e uso único (ou `maxUsos`);
+- bloqueio de repetição por email/telefone no mesmo slug;
+- rate limit básico em endpoints sensíveis (login e validação de token);
+- headers de segurança HTTP no `next.config.ts`.

@@ -4,25 +4,38 @@ declare global {
   var __db__: Sql | undefined;
 }
 
-function requiredEnv(name: string) {
-  const v = process.env[name];
-  if (!v) throw new Error(`${name} não definido`);
-  return v;
+function createMissingEnvDbProxy(message: string) {
+  const throwingHandler: ProxyHandler<CallableFunction> = {
+    apply() {
+      throw new Error(message);
+    },
+    get() {
+      throw new Error(message);
+    },
+  };
+
+  return new Proxy((() => undefined) as CallableFunction, throwingHandler) as Sql;
 }
 
 function createDb() {
-  const DATABASE_URL = requiredEnv("DATABASE_URL");
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    return createMissingEnvDbProxy("DATABASE_URL nao definido");
+  }
 
-  const ssl =
-    process.env.DATABASE_SSL === "true" ? ("require" as const) : false;
-
+  const ssl = process.env.DATABASE_SSL === "true" ? ("require" as const) : false;
   const max = Number(process.env.DATABASE_POOL_SIZE ?? "10");
 
-  return postgres(DATABASE_URL, {
+  return postgres(databaseUrl, {
     ssl,
     max,
     idle_timeout: 20,
     connect_timeout: 10,
+    onnotice: (notice) => {
+      // Suppress expected DDL idempotency notices (e.g. CREATE ... IF NOT EXISTS).
+      if (notice?.code === "42P07") return;
+      console.warn("Postgres notice:", notice.message);
+    },
   });
 }
 

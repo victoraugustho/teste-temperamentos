@@ -42,3 +42,4 @@ next-env.d.ts
 
 #arquivos de imagens e estruturais e informacionais
 /arquivos
+/public/uploads/portal-logos

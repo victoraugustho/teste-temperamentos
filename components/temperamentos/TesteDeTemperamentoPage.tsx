@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import React, { FC, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -18,8 +18,8 @@ type ClienteCookie = {
   createdAt: number
 }
 
-const COOKIE_NAME = "temperamentos_cliente"
-const SCORES_COOKIE = "temperamentos_scores"
+const DEFAULT_CLIENT_COOKIE = "temperamentos_cliente"
+const DEFAULT_SCORES_COOKIE = "temperamentos_scores"
 
 function getCookie(name: string) {
   const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"))
@@ -31,8 +31,8 @@ function setCookie(name: string, value: string, days = 30) {
   document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAge}; SameSite=Lax`
 }
 
-function parseClienteCookie(): ClienteCookie | null {
-  const raw = getCookie(COOKIE_NAME)
+function parseClienteCookie(cookieName: string): ClienteCookie | null {
+  const raw = getCookie(cookieName)
   if (!raw) return null
   try {
     const data = JSON.parse(raw) as ClienteCookie
@@ -302,7 +302,26 @@ const label: Record<Temperament, string> = {
 const TesteDeTemperamentoPage: FC<{
   resultPath?: string
   gatePath?: string
-}> = ({ resultPath = "/temperamentos/resultado", gatePath = "/temperamentos" }) => {
+  submitEndpoint?: string
+  submitOnlyScores?: boolean
+  clientCookieName?: string
+  scoresCookieName?: string
+  branding?: {
+    brandName: string
+    logoUrl: string | null
+    logoBackground: "dark" | "light"
+    heroTitle: string
+    heroDescription: string
+  } | null
+}> = ({
+  resultPath = "/temperamentos/resultado",
+  gatePath = "/temperamentos",
+  submitEndpoint = "/api/salvar-resultado",
+  submitOnlyScores = false,
+  clientCookieName = DEFAULT_CLIENT_COOKIE,
+  scoresCookieName = DEFAULT_SCORES_COOKIE,
+  branding = null,
+}) => {
   const router = useRouter()
 
   const [cliente, setCliente] = useState<ClienteCookie | null>(null)
@@ -313,13 +332,19 @@ const TesteDeTemperamentoPage: FC<{
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const brandName = String(branding?.brandName ?? "").trim() || "Portal de Testes"
+  const heroTitle = String(branding?.heroTitle ?? "").trim() || "Teste de Temperamentos"
+  const heroDescription =
+    String(branding?.heroDescription ?? "").trim() ||
+    "Responda cada questão com a opção que mais combina com você."
+  const logoUrl = String(branding?.logoUrl ?? "").trim() || null
+  const logoBackground = branding?.logoBackground === "light" ? "light" : "dark"
 
   useEffect(() => {
-    const c = parseClienteCookie()
+    const c = parseClienteCookie(clientCookieName)
     setCliente(c)
     if (!c) router.replace(gatePath)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [clientCookieName, gatePath, router])
 
   const progress = useMemo(() => {
     return Math.round(((currentQuestionIndex + 1) / questions.length) * 100)
@@ -354,18 +379,19 @@ const TesteDeTemperamentoPage: FC<{
     setFinalScores(scores)
 
     try {
-      const c = parseClienteCookie()
+      const c = parseClienteCookie(clientCookieName)
       if (!c) throw new Error("Dados do cliente não encontrados. Volte e preencha o formulário.")
 
-      // 👉 alinhado com a API /api/salvar-resultado
-      const payload = {
-        nome: c.nome,
-        email: c.email ?? null,
-        telefone: c.telefone,
-        scores,
-      }
+      const payload = submitOnlyScores
+        ? { scores }
+        : {
+            nome: c.nome,
+            email: c.email ?? null,
+            telefone: c.telefone,
+            scores,
+          }
 
-      const res = await fetch("/api/salvar-resultado", {
+      const res = await fetch(submitEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -374,12 +400,17 @@ const TesteDeTemperamentoPage: FC<{
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(String(data?.error ?? "Falha ao salvar o resultado."))
 
-      // cookie auxiliar pro resultado (client-side)
-      setCookie(SCORES_COOKIE, JSON.stringify(scores), 30)
+      if (scoresCookieName) {
+        setCookie(scoresCookieName, JSON.stringify(scores), 30)
+      }
 
-      router.replace(resultPath)
-    } catch (e: any) {
-      setError(e?.message ?? "Erro inesperado.")
+      if (typeof data?.redirectUrl === "string" && data.redirectUrl) {
+        router.replace(data.redirectUrl)
+      } else {
+        router.replace(resultPath)
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Erro inesperado.")
       setIsSaving(false)
       setIsTransitioning(false)
     }
@@ -401,12 +432,28 @@ const TesteDeTemperamentoPage: FC<{
         {/* Header */}
         <Card className="bg-white/5 border-white/10 backdrop-blur-xl">
           <CardHeader className="pb-4">
+            {logoUrl && (
+              <div className="flex justify-center mb-4">
+                <div className="relative">
+                  <div className="absolute inset-0 rounded-3xl bg-cyan-400/35 blur-2xl" />
+                  <img
+                    src={logoUrl}
+                    alt={brandName}
+                    className={`relative h-24 w-24 sm:h-28 sm:w-28 rounded-3xl object-contain border-2 border-cyan-300/70 p-2 shadow-[0_0_35px_rgba(34,211,238,0.35)] ${
+                      logoBackground === "light" ? "bg-white" : "bg-slate-900/85"
+                    }`}
+                  />
+                </div>
+              </div>
+            )}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <CardTitle className="text-cyan-400 text-xl sm:text-2xl flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-cyan-400" />
-                  Teste de Temperamentos
+                  {heroTitle}
                 </CardTitle>
+                <p className="text-sm text-cyan-300 mt-1">{brandName}</p>
+                <p className="text-xs text-slate-300 mt-1">{heroDescription}</p>
                 <p className="text-slate-300 mt-1">
                   {cliente.nome} • {cliente.telefone}
                 </p>
@@ -441,7 +488,7 @@ const TesteDeTemperamentoPage: FC<{
           <CardContent className="p-6">
             <div className="flex items-start justify-between gap-3 mb-5">
               <div>
-                <h2 className="text-lg sm:text-2xl font-semibold text-white">Qual destas palavras melhor descreve você?</h2>
+                <h2 className="text-lg sm:text-2xl font-semibold text-white">Qual destas palavras melhor descreve você</h2>
                 <p className="text-sm text-slate-300 mt-1">Escolha apenas uma opção para avançar automaticamente.</p>
               </div>
 
@@ -510,3 +557,5 @@ const TesteDeTemperamentoPage: FC<{
 }
 
 export default TesteDeTemperamentoPage
+
+
