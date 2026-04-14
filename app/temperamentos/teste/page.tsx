@@ -1,5 +1,5 @@
-import TesteDeTemperamentoPage from "@/components/temperamentos/TesteDeTemperamentoPage"
+import { redirect } from "next/navigation"
 
 export default function Page() {
-  return <TesteDeTemperamentoPage resultPath="/temperamentos/resultado" gatePath="/" />
+  redirect("/portal/login")
 }

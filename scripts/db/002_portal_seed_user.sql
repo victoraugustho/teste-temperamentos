@@ -10,9 +10,9 @@ INSERT INTO public.portal_users (
   is_active
 )
 VALUES (
-  'gomesvictor46@gmail.com',
-  '$16384$8$1$494e44b10c7598422db45e71145387f4$f0dfd30b566a7a77d7d8f5634953bdc2dee1374870752cf9de81ee32fbd3b100002ace371730622d20f4d5fb176cf366bf17f8e1dbee3cbfd0231d971c10bb87',
-  'Administrador',
+  'matrizsuaessencia@gmail.com',
+  'scrypt$16384$8$1$26518104f91e2076d78eb17e387f6b68$5bc14b917f48f4b12f9d9cf905c0b7b2f20e8db0937ae9f10eb1645ffd6cb899127586f535609ff7ebfd0a09110b310ed61d2e2021355f206d89fc21f45e09b1',
+  'Juliana Barbosa',
   TRUE
 )
 ON CONFLICT (email)
