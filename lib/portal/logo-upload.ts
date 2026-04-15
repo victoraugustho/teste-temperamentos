@@ -15,7 +15,8 @@ export const PORTAL_LOGO_MAX_BYTES = 2 * 1024 * 1024;
 export const PORTAL_LOGO_MIN_DIMENSION = 32;
 export const PORTAL_LOGO_MAX_DIMENSION = 2000;
 
-const PORTAL_LOGO_PUBLIC_PREFIX = "/uploads/portal-logos";
+const PORTAL_LOGO_PUBLIC_PREFIX = "/api/public/uploads/portal-logos";
+const PORTAL_LOGO_LEGACY_PUBLIC_PREFIX = "/uploads/portal-logos";
 
 const MIME_ALIAS_TO_ALLOWED: Record<string, AllowedMime> = {
   "image/png": "image/png",
@@ -262,16 +263,34 @@ export function buildPortalLogoPublicUrl(userId: number, fileName: string) {
   return `${PORTAL_LOGO_PUBLIC_PREFIX}/${userId}/${fileName}`;
 }
 
+export function normalizePortalLogoPublicUrl(logoUrl: string | null | undefined) {
+  const normalizedUrl = String(logoUrl ?? "").trim();
+  if (!normalizedUrl) return null;
+
+  if (normalizedUrl.startsWith(`${PORTAL_LOGO_PUBLIC_PREFIX}/`)) {
+    return normalizedUrl;
+  }
+
+  if (normalizedUrl.startsWith(`${PORTAL_LOGO_LEGACY_PUBLIC_PREFIX}/`)) {
+    return `${PORTAL_LOGO_PUBLIC_PREFIX}${normalizedUrl.slice(PORTAL_LOGO_LEGACY_PUBLIC_PREFIX.length)}`;
+  }
+
+  return normalizedUrl;
+}
+
 export function resolveOwnedPortalLogoAbsolutePath(logoUrl: string, userId: number) {
   const normalizedUrl = String(logoUrl ?? "").trim();
-  const prefix = `${PORTAL_LOGO_PUBLIC_PREFIX}/${userId}/`;
-  if (!normalizedUrl.startsWith(prefix)) return null;
+  const prefixes = [
+    `${PORTAL_LOGO_PUBLIC_PREFIX}/${userId}/`,
+    `${PORTAL_LOGO_LEGACY_PUBLIC_PREFIX}/${userId}/`,
+  ];
+  const matchedPrefix = prefixes.find((prefix) => normalizedUrl.startsWith(prefix));
+  if (!matchedPrefix) return null;
 
-  const relativeFileName = normalizedUrl.slice(prefix.length);
+  const relativeFileName = normalizedUrl.slice(matchedPrefix.length);
   if (!relativeFileName || relativeFileName.includes("..") || relativeFileName.includes("/")) {
     return null;
   }
 
   return path.join(getPortalLogoUserDir(userId), relativeFileName);
 }
-

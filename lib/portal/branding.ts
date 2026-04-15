@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { normalizePortalLogoPublicUrl } from "@/lib/portal/logo-upload";
 import { ensurePortalSchema } from "@/lib/portal/schema";
 import { isValidSlug } from "@/lib/portal/validation";
 
@@ -38,7 +39,8 @@ function normalizeOptionalText(value: unknown, maxLength: number) {
 export function normalizeLogoUrl(value: unknown) {
   const url = String(value ?? "").trim();
   if (!url) return null;
-  return url.slice(0, 500);
+  const normalized = normalizePortalLogoPublicUrl(url.slice(0, 500));
+  return normalized ? normalized.slice(0, 500) : null;
 }
 
 export function isValidBrandingLogoUrl(value: string | null) {
@@ -65,7 +67,7 @@ function toBranding(row: BrandingRow | null | undefined, fallbackName: string): 
 
   return {
     brandName,
-    logoUrl: row?.logo_url ?? null,
+    logoUrl: normalizeLogoUrl(row?.logo_url),
     logoBackground,
     heroTitle,
     heroDescription,
