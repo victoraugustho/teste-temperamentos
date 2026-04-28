@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -175,14 +176,14 @@ function PaginationControls({
   onPageChange: (page: number) => void;
 }) {
   return (
-    <div className="mt-3 flex items-center justify-between text-sm text-slate-300">
+    <div className="mt-3 flex flex-col gap-2 text-sm text-slate-300 sm:flex-row sm:items-center sm:justify-between">
       <span>
         Pagina {pagination.page} de {Math.max(1, pagination.totalPages)} ({pagination.total} itens)
       </span>
-      <div className="flex items-center gap-2">
+      <div className="flex w-full items-center gap-2 sm:w-auto">
         <Button
           variant="outline"
-          className="bg-transparent border-white/20 text-white hover:bg-white/10"
+          className="flex-1 bg-transparent border-white/20 text-white hover:bg-white/10 sm:flex-none"
           disabled={!pagination.hasPrev}
           onClick={() => onPageChange(pagination.page - 1)}
         >
@@ -190,7 +191,7 @@ function PaginationControls({
         </Button>
         <Button
           variant="outline"
-          className="bg-transparent border-white/20 text-white hover:bg-white/10"
+          className="flex-1 bg-transparent border-white/20 text-white hover:bg-white/10 sm:flex-none"
           disabled={!pagination.hasNext}
           onClick={() => onPageChange(pagination.page + 1)}
         >
@@ -233,6 +234,13 @@ export default function PortalDashboard({ user }: { user: PortalUser }) {
   const [isSavingBranding, setIsSavingBranding] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [brandingFeedback, setBrandingFeedback] = useState<string | null>(null);
+  const [copyFeedback, setCopyFeedback] = useState<{
+    key: string;
+    message: string;
+  } | null>(null);
+  const copyFeedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   const testsByStatus = useMemo(() => {
     const active: PortalTest[] = [];
@@ -259,6 +267,8 @@ export default function PortalDashboard({ user }: { user: PortalUser }) {
 
     return { active, used, expired, revoked };
   }, [tests]);
+  const isCreatedLinkCopied = copyFeedback?.key === "created-link";
+  const isCreatedTokenCopied = copyFeedback?.key === "created-token";
 
   async function fetchBranding() {
     setIsLoadingBranding(true);
@@ -370,6 +380,14 @@ export default function PortalDashboard({ user }: { user: PortalUser }) {
   useEffect(() => {
     void Promise.all([fetchBranding(), fetchTests(1), fetchResults(1)]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (copyFeedbackTimeoutRef.current) {
+        clearTimeout(copyFeedbackTimeoutRef.current);
+      }
+    };
   }, []);
 
   async function saveBranding() {
@@ -631,12 +649,62 @@ export default function PortalDashboard({ user }: { user: PortalUser }) {
     }
   }
 
-  async function copyText(value: string) {
-    try {
-      await navigator.clipboard.writeText(value);
-    } catch {
-      setError("Nao foi possivel copiar para a area de transferencia.");
+  function markCopyFeedback(key: string, message: string) {
+    setCopyFeedback({ key, message });
+    if (copyFeedbackTimeoutRef.current) {
+      clearTimeout(copyFeedbackTimeoutRef.current);
     }
+    copyFeedbackTimeoutRef.current = setTimeout(() => {
+      setCopyFeedback((current) => (current?.key === key ? null : current));
+    }, 1800);
+  }
+
+  async function copyText(value: string, key: string, message = "Link copiado!") {
+    const normalized = String(value ?? "").trim();
+    if (!normalized) {
+      setError("Nada para copiar.");
+      return;
+    }
+
+    try {
+      if (
+        typeof window !== "undefined" &&
+        typeof navigator !== "undefined" &&
+        navigator.clipboard &&
+        typeof navigator.clipboard.writeText === "function"
+      ) {
+        await navigator.clipboard.writeText(normalized);
+        markCopyFeedback(key, message);
+        return;
+      }
+    } catch {
+      // fallback abaixo
+    }
+
+    try {
+      const textArea = document.createElement("textarea");
+      textArea.value = normalized;
+      textArea.setAttribute("readonly", "true");
+      textArea.style.position = "fixed";
+      textArea.style.top = "-9999px";
+      textArea.style.left = "-9999px";
+      textArea.style.opacity = "0";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      textArea.setSelectionRange(0, normalized.length);
+      const copied = document.execCommand("copy");
+      document.body.removeChild(textArea);
+
+      if (copied) {
+        markCopyFeedback(key, message);
+        return;
+      }
+    } catch {
+      // trata abaixo
+    }
+
+    setError("Nao foi possivel copiar para a area de transferencia.");
   }
 
   async function logout() {
@@ -648,11 +716,15 @@ export default function PortalDashboard({ user }: { user: PortalUser }) {
     const displayStatus = getDisplayTestStatus(test);
     const statusLabel = getDisplayTestStatusLabel(displayStatus);
     const statusClass = getDisplayTestStatusClass(displayStatus);
+    const linkCopyKey = `test-link-${test.id}`;
+    const tokenCopyKey = `test-token-${test.id}`;
+    const isLinkCopied = copyFeedback?.key === linkCopyKey;
+    const isTokenCopied = copyFeedback?.key === tokenCopyKey;
 
     return (
       <div
         key={test.id}
-        className="p-3 flex flex-col md:flex-row md:items-center gap-3 md:gap-4"
+        className="p-3 flex flex-col gap-3 md:flex-row md:items-center md:gap-4"
       >
         <div className="min-w-0 flex-1">
           <div className="font-semibold truncate">{test.titulo || "(Sem titulo)"}</div>
@@ -664,17 +736,41 @@ export default function PortalDashboard({ user }: { user: PortalUser }) {
             <span className={statusClass}>{statusLabel}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
           <Button
             variant="outline"
-            className="bg-transparent border-white/20 text-white hover:bg-white/10"
-            onClick={() => copyText(toAbsoluteUrl(test.share_url || `/teste/${test.slug}`))}
+            className={`w-full sm:w-auto border transition-all duration-300 ${
+              isLinkCopied
+                ? "border-emerald-400/70 bg-emerald-500/20 text-emerald-100"
+                : "border-white/20 bg-transparent text-white hover:bg-white/10"
+            }`}
+            onClick={() =>
+              void copyText(
+                toAbsoluteUrl(test.share_url || `/teste/${test.slug}`),
+                linkCopyKey,
+                "Link copiado!",
+              )
+            }
           >
-            Copiar link
+            {isLinkCopied ? (
+              <>
+                <Check className="mr-2 h-4 w-4" />
+                Copiado!
+              </>
+            ) : (
+              <>
+                <Copy className="mr-2 h-4 w-4" />
+                Copiar link
+              </>
+            )}
           </Button>
           <Button
             variant="outline"
-            className="bg-transparent border-white/20 text-white hover:bg-white/10"
+            className={`w-full sm:w-auto border transition-all duration-300 ${
+              isTokenCopied
+                ? "border-emerald-400/70 bg-emerald-500/20 text-emerald-100"
+                : "border-white/20 bg-transparent text-white hover:bg-white/10"
+            }`}
             onClick={() => {
               const fullToken = String(test.token ?? "").trim();
               if (!fullToken) {
@@ -683,14 +779,24 @@ export default function PortalDashboard({ user }: { user: PortalUser }) {
                 );
                 return;
               }
-              void copyText(fullToken);
+              void copyText(fullToken, tokenCopyKey, "Token copiado!");
             }}
           >
-            Copiar token
+            {isTokenCopied ? (
+              <>
+                <Check className="mr-2 h-4 w-4" />
+                Copiado!
+              </>
+            ) : (
+              <>
+                <Copy className="mr-2 h-4 w-4" />
+                Copiar token
+              </>
+            )}
           </Button>
           <Button
             variant="outline"
-            className="bg-transparent border-white/20 text-white hover:bg-white/10"
+            className="w-full sm:w-auto bg-transparent border-white/20 text-white hover:bg-white/10"
             onClick={() =>
               setEditTest({
                 id: test.id,
@@ -705,7 +811,7 @@ export default function PortalDashboard({ user }: { user: PortalUser }) {
           </Button>
           <Button
             variant="outline"
-            className="bg-transparent border-red-400/40 text-red-200 hover:bg-red-500/10"
+            className="w-full sm:w-auto bg-transparent border-red-400/40 text-red-200 hover:bg-red-500/10"
             onClick={() => deleteTest(test.id)}
           >
             Excluir
@@ -734,7 +840,7 @@ export default function PortalDashboard({ user }: { user: PortalUser }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8">
+    <div className="min-h-screen bg-slate-950 p-3 text-slate-100 sm:p-6 lg:p-8">
       <div className="mx-auto w-full max-w-7xl space-y-6">
         <Card className="bg-white/5 border-white/10 text-white">
           <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -747,7 +853,7 @@ export default function PortalDashboard({ user }: { user: PortalUser }) {
             <Button
               onClick={logout}
               variant="outline"
-              className="bg-transparent border-white/20 text-white hover:bg-white/10"
+              className="w-full bg-transparent border-white/20 text-white hover:bg-white/10 sm:w-auto"
             >
               Sair
             </Button>
@@ -897,7 +1003,7 @@ export default function PortalDashboard({ user }: { user: PortalUser }) {
 
         <Card className="bg-white/5 border-white/10 text-white">
           <CardContent className="pt-6">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <Button
                 onClick={() => setActiveSection("tests")}
                 className={
@@ -973,18 +1079,50 @@ export default function PortalDashboard({ user }: { user: PortalUser }) {
                   <span className="text-sm text-emerald-200">Link gerado com sucesso.</span>
                   <Button
                     variant="outline"
-                    className="bg-transparent border-white/20 text-white hover:bg-white/10"
-                    onClick={() => copyText(createdLink)}
+                    className={`w-full sm:w-auto border transition-all duration-300 ${
+                      isCreatedLinkCopied
+                        ? "border-emerald-400/70 bg-emerald-500/20 text-emerald-100"
+                        : "bg-transparent border-white/20 text-white hover:bg-white/10"
+                    }`}
+                    onClick={() =>
+                      void copyText(createdLink, "created-link", "Link copiado!")
+                    }
                   >
-                    Copiar link
+                    {isCreatedLinkCopied ? (
+                      <>
+                        <Check className="mr-2 h-4 w-4" />
+                        Copiado!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copiar link
+                      </>
+                    )}
                   </Button>
                   {createdToken && (
                     <Button
                       variant="outline"
-                      className="bg-transparent border-white/20 text-white hover:bg-white/10"
-                      onClick={() => copyText(createdToken)}
+                      className={`w-full sm:w-auto border transition-all duration-300 ${
+                        isCreatedTokenCopied
+                          ? "border-emerald-400/70 bg-emerald-500/20 text-emerald-100"
+                          : "bg-transparent border-white/20 text-white hover:bg-white/10"
+                      }`}
+                      onClick={() =>
+                        void copyText(createdToken, "created-token", "Token copiado!")
+                      }
                     >
-                      Copiar token
+                      {isCreatedTokenCopied ? (
+                        <>
+                          <Check className="mr-2 h-4 w-4" />
+                          Copiado!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="mr-2 h-4 w-4" />
+                          Copiar token
+                        </>
+                      )}
                     </Button>
                   )}
                 </div>
@@ -1049,7 +1187,7 @@ export default function PortalDashboard({ user }: { user: PortalUser }) {
                     <option value="revoked">revoked</option>
                   </select>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <Button
                     className="bg-gradient-to-r from-cyan-500 to-blue-600"
                     onClick={saveTestEdit}
@@ -1144,7 +1282,7 @@ export default function PortalDashboard({ user }: { user: PortalUser }) {
                     className="bg-slate-900/60 border-white/10"
                   />
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <Button
                     className="bg-gradient-to-r from-cyan-500 to-blue-600"
                     onClick={saveResultEdit}
@@ -1175,7 +1313,7 @@ export default function PortalDashboard({ user }: { user: PortalUser }) {
                   return (
                     <div
                       key={result.id}
-                      className="p-3 flex flex-col md:flex-row md:items-center gap-3 md:gap-4"
+                      className="p-3 flex flex-col gap-3 md:flex-row md:items-center md:gap-4"
                     >
                       <div className="min-w-0 flex-1">
                         <div className="font-semibold truncate">{result.nome}</div>
@@ -1187,12 +1325,12 @@ export default function PortalDashboard({ user }: { user: PortalUser }) {
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
                         {hasPhone && (
                           <Button
                             asChild
                             variant="outline"
-                            className="bg-transparent border-emerald-400/40 text-emerald-200 hover:bg-emerald-500/10"
+                            className="w-full sm:w-auto bg-transparent border-emerald-400/40 text-emerald-200 hover:bg-emerald-500/10"
                           >
                             <a
                               href={`https://wa.me/${cleanPhone}`}
@@ -1207,7 +1345,7 @@ export default function PortalDashboard({ user }: { user: PortalUser }) {
                         <Button
                           asChild
                           variant="outline"
-                          className="bg-transparent border-white/20 text-white hover:bg-white/10"
+                          className="w-full sm:w-auto bg-transparent border-white/20 text-white hover:bg-white/10"
                         >
                           <Link href={`/resultado/${result.slug}/${result.id}`}>
                             Ver resultado
@@ -1216,7 +1354,7 @@ export default function PortalDashboard({ user }: { user: PortalUser }) {
 
                         <Button
                           variant="outline"
-                          className="bg-transparent border-white/20 text-white hover:bg-white/10"
+                          className="w-full sm:w-auto bg-transparent border-white/20 text-white hover:bg-white/10"
                           onClick={() =>
                             setEditResult({
                               id: result.id,
@@ -1231,7 +1369,7 @@ export default function PortalDashboard({ user }: { user: PortalUser }) {
 
                         <Button
                           variant="outline"
-                          className="bg-transparent border-red-400/40 text-red-200 hover:bg-red-500/10"
+                          className="w-full sm:w-auto bg-transparent border-red-400/40 text-red-200 hover:bg-red-500/10"
                           onClick={() => deleteResult(result.id)}
                         >
                           Excluir
@@ -1252,6 +1390,14 @@ export default function PortalDashboard({ user }: { user: PortalUser }) {
             />
           </CardContent>
         </Card>
+        )}
+
+        {copyFeedback && (
+          <div className="pointer-events-none fixed bottom-4 left-1/2 z-50 -translate-x-1/2 sm:left-auto sm:right-4 sm:translate-x-0">
+            <div className="rounded-xl border border-emerald-400/50 bg-emerald-500/20 px-4 py-2 text-sm font-medium text-emerald-100 shadow-lg shadow-emerald-900/30">
+              {copyFeedback.message}
+            </div>
+          </div>
         )}
       </div>
     </div>
